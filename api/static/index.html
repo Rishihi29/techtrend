@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TechTrend · Market Intelligence Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root[data-theme="dark"]{
+  --bg:#0d1321;--panel:#151d30;--panel2:#1b2540;--line:#26314f;
+  --ink:#e9edf7;--ink-dim:#8b96b3;--amber:#f5a524;--up:#2dd4bf;--down:#fb7185;
+  --shadow:0 8px 30px rgba(2,6,18,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f3f5fa;--panel:#ffffff;--panel2:#eef1f8;--line:#dde3f0;
+  --ink:#1a2233;--ink-dim:#5d6a86;--amber:#c77800;--up:#0f9d8a;--down:#d64560;
+  --shadow:0 8px 24px rgba(30,41,66,.10);
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 "Space Grotesk",system-ui,sans-serif;
+     transition:background .25s,color .25s}
+.mono{font-family:"IBM Plex Mono",monospace}
+header{display:flex;align-items:center;gap:16px;padding:18px 28px;border-bottom:1px solid var(--line)}
+.logo{font-weight:700;font-size:19px;letter-spacing:.02em}
+.logo b{color:var(--amber)}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+header .spacer{flex:1}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:5px 12px;border:1px solid var(--line);
+      border-radius:999px;color:var(--ink-dim)}
+.pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--up);margin-right:7px}
+button.theme{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;
+      padding:6px 14px;cursor:pointer;font:inherit;font-size:13px}
+/* ticker — the signature */
+.ticker{overflow:hidden;border-bottom:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.ticker-track{display:inline-block;padding:9px 0;animation:tick 45s linear infinite;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.ticker-track:hover{animation-play-state:paused}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tick-item{margin:0 26px;color:var(--ink-dim)}
+.tick-item .up{color:var(--up)} .tick-item .down{color:var(--down)}
+main{max-width:1280px;margin:0 auto;padding:26px 28px 80px;display:grid;gap:22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;
+      box-shadow:var(--shadow);transition:transform .18s,border-color .18s}
+.card:hover{transform:translateY(-2px);border-color:var(--amber)}
+.kpi .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+.kpi .value{font-family:"IBM Plex Mono",monospace;font-size:27px;font-weight:600;margin-top:6px}
+.kpi .sub{font-size:12px;color:var(--ink-dim);margin-top:2px}
+.grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:22px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+h2{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:baseline;gap:10px}
+h2 .eyebrow{font-weight:500}
+canvas{max-height:300px}
+.dq-dims{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.dq-dims .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-dim)}
+.dq-dims .row b{font-family:"IBM Plex Mono",monospace;color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);text-align:left;
+   padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line)}
+tr:hover td{background:var(--panel2)}
+td img{width:34px;height:34px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:10px}
+.badge{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:2px 9px;border-radius:999px}
+.badge.deal{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.badge.anom{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
+.badge.seg{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
+/* explorer */
+.controls{display:flex;flex-wrap:wrap;gap:10px}
+.controls input,.controls select{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:9px 13px;font:inherit;font-size:13.5px;min-width:130px}
+.controls input[type=search]{flex:1;min-width:220px}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:14px;margin-top:16px}
+.pcard{cursor:pointer;padding:0;overflow:hidden}
+.pcard img{width:100%;height:130px;object-fit:cover;display:block;background:var(--panel2)}
+.pcard .body{padding:13px 15px}
+.pcard .name{font-weight:500;font-size:13.5px;height:40px;overflow:hidden}
+.pcard .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.pcard .price{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:16px}
+.pcard .rating{font-size:12px;color:var(--ink-dim)}
+.pager{display:flex;gap:10px;justify-content:center;margin-top:18px;align-items:center;
+       font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-dim)}
+.pager button{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+       padding:6px 14px;cursor:pointer}
+.pager button:disabled{opacity:.35;cursor:default}
+/* drawer */
+.drawer{position:fixed;inset:0;background:rgba(5,9,20,.55);display:none;z-index:50}
+.drawer.open{display:flex;justify-content:flex-end}
+.drawer .panel{width:min(680px,100%);background:var(--bg);border-left:1px solid var(--line);
+       height:100%;overflow-y:auto;padding:26px 28px;animation:slide .22s ease-out}
+@keyframes slide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+.drawer .close{float:right;background:none;border:none;color:var(--ink-dim);font-size:22px;cursor:pointer}
+.drawer img.hero{width:100%;height:220px;object-fit:cover;border-radius:14px;margin:12px 0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat .l{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.stat .v{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;margin-top:3px}
+.recs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.rec{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);
+     border-radius:12px;padding:9px 11px;cursor:pointer;font-size:12.5px}
+.rec img{width:38px;height:38px;border-radius:9px;object-fit:cover}
+.skeleton{background:linear-gradient(90deg,var(--panel) 25%,var(--panel2) 50%,var(--panel) 75%);
+     background-size:200% 100%;animation:sk 1.2s infinite;border-radius:12px;min-height:70px}
+@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+.empty{color:var(--ink-dim);text-align:center;padding:30px;font-size:13.5px}
+footer{color:var(--ink-dim);font-size:12px;text-align:center;padding:24px}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}.card:hover{transform:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">Tech<b>Trend</b></div>
+    <div class="eyebrow">Enterprise data platform · market intelligence console</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="health"><span class="dot"></span>connecting…</span>
+  <a class="pill" href="/docs" style="text-decoration:none">API docs ↗</a>
+  <button class="theme" id="themeBtn" aria-label="Toggle theme">◐ theme</button>
+</header>
+
+<div class="ticker"><div class="ticker-track" id="ticker"><span class="tick-item">loading market insights…</span></div></div>
+
+<main>
+  <section class="kpis" id="kpis">
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </section>
+
+  <section class="grid-2">
+    <div class="card">
+      <h2>Category price index <span class="eyebrow">daily average · warehouse mart</span></h2>
+      <canvas id="catChart" height="120"></canvas>
+    </div>
+    <div class="card">
+      <h2>Data quality <span class="eyebrow">composite SLO ≥ 0.90</span></h2>
+      <canvas id="dqChart" height="120"></canvas>
+      <div class="dq-dims" id="dqDims"></div>
+    </div>
+  </section>
+
+  <section class="grid-2">
+    <div class="card">
+      <h2>Top deals <span class="eyebrow">discount ≥ 15% · latest observation</span></h2>
+      <div style="overflow-x:auto"><table id="deals"><thead>
+        <tr><th>Product</th><th>Price</th><th>Was</th><th>Discount</th><th>Rating</th></tr>
+      </thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Price anomalies <span class="eyebrow">robust-z + isolation forest</span></h2>
+      <div style="overflow-x:auto"><table id="anoms"><thead>
+        <tr><th>Product</th><th>Date</th><th>Δ%</th><th>Type</th></tr>
+      </thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Product explorer <span class="eyebrow">search · filter · sort · click for forecast</span></h2>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search products or brands…" autocomplete="off">
+      <select id="fCat"><option value="">All categories</option></select>
+      <select id="fBrand"><option value="">All brands</option></select>
+      <select id="fSort">
+        <option value="avg_price:asc">Price ↑</option><option value="avg_price:desc">Price ↓</option>
+        <option value="avg_rating:desc">Rating ↓</option><option value="avg_discount:desc">Discount ↓</option>
+        <option value="price_volatility:desc">Volatility ↓</option>
+      </select>
+    </div>
+    <div class="products" id="prodGrid"></div>
+    <div class="pager">
+      <button id="prev">‹ prev</button><span id="pageInfo">–</span><button id="next">next ›</button>
+    </div>
+  </section>
+</main>
+
+<div class="drawer" id="drawer" aria-modal="true" role="dialog">
+  <div class="panel">
+    <button class="close" onclick="closeDrawer()" aria-label="Close">✕</button>
+    <div id="drawerBody"></div>
+  </div>
+</div>
+
+<footer>TechTrend Enterprise Data Platform — served from the dimensional warehouse · scores from the ML registry pipeline</footer>
+
+<script>
+const API = "/api/v1";
+const $ = s => document.querySelector(s);
+const fmt = n => n==null ? "–" : "$"+Number(n).toFixed(2);
+const state = {page:1, pages:1, q:"", cat:"", brand:"", sort:"avg_price:asc"};
+let catChart, dqChart, histChart;
+
+/* theme */
+$("#themeBtn").onclick = () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+  renderCharts.cache && renderCharts.cache();
+};
+
+async function j(path){ const r = await fetch(API+path); if(!r.ok) throw new Error(r.status); return r.json(); }
+
+async function boot(){
+  try{
+    const h = await fetch("/health").then(r=>r.json());
+    $("#health").innerHTML = `<span class="dot"></span>${h.status} · ${h.warehouse}`;
+  }catch{ $("#health").textContent = "offline"; }
+  await Promise.all([loadKpis(), loadTicker(), loadCategoryChart(), loadDeals(), loadAnoms(), loadFacets()]);
+  loadProducts();
+}
+
+async function loadKpis(){
+  const k = await j("/analytics/kpis");
+  const dq = k.quality ? (k.quality.composite_score*100).toFixed(1)+"%" : "–";
+  const cells = [
+    ["Products", k.products, k.categories+" categories"],
+    ["Warehouse rows", k.warehouse_rows.toLocaleString(), "fact_price_observation"],
+    ["Brands", k.brands, "active catalog"],
+    ["Active deals", k.active_deals, "≥15% discount"],
+    ["Anomalies", k.anomalies, "flagged by ensemble"],
+    ["DQ score", dq, "5-dimension composite"],
+  ];
+  $("#kpis").innerHTML = cells.map(([l,v,s]) =>
+    `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+  if(k.quality) renderDq(k.quality);
+}
+
+async function loadTicker(){
+  const ins = await j("/analytics/insights").catch(()=>[]);
+  if(!ins.length){ $("#ticker").innerHTML = '<span class="tick-item">no insights yet — run the pipeline</span>'; return; }
+  const items = ins.map(i =>
+    `<span class="tick-item">▸ <span class="${i.direction}">${i.headline}</span></span>`).join("");
+  $("#ticker").innerHTML = items + items; // duplicate for seamless loop
+}
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+async function loadCategoryChart(){
+  const rows = await j("/analytics/categories/daily");
+  const cats = [...new Set(rows.map(r=>r.category))];
+  const dates = [...new Set(rows.map(r=>r.full_date))].sort();
+  const palette = [css("--amber"), css("--up"), css("--down"), "#818cf8", "#e879f9"];
+  const draw = () => {
+    catChart?.destroy();
+    catChart = new Chart($("#catChart"), {
+      type:"line",
+      data:{ labels:dates, datasets: cats.map((c,i)=>({
+        label:c, borderColor:palette[i%palette.length], borderWidth:2, pointRadius:0, tension:.3,
+        data:dates.map(d => rows.find(r=>r.category===c && r.full_date===d)?.avg_price ?? null),
+      }))},
+      options:{ responsive:true, interaction:{mode:"index",intersect:false},
+        plugins:{legend:{labels:{color:css("--ink-dim"),boxWidth:10}}},
+        scales:{ x:{ticks:{color:css("--ink-dim"),maxTicksLimit:8},grid:{color:css("--line")}},
+                 y:{ticks:{color:css("--ink-dim"),callback:v=>"$"+v},grid:{color:css("--line")}}}}
+    });
+  };
+  draw(); renderCharts.cache = draw;
+}
+const renderCharts = {};
+
+function renderDq(q){
+  dqChart?.destroy();
+  dqChart = new Chart($("#dqChart"), {
+    type:"doughnut",
+    data:{ labels:["score","gap"], datasets:[{ data:[q.composite_score, 1-q.composite_score],
+      backgroundColor:[css("--up"), css("--panel2")], borderWidth:0, cutout:"78%" }]},
+    options:{ plugins:{legend:{display:false}, tooltip:{enabled:false}} }
+  });
+  const dims = ["completeness","uniqueness","validity","consistency","freshness"];
+  $("#dqDims").innerHTML = dims.map(d =>
+    `<div class="row"><span>${d}</span><b>${(q[d]*100).toFixed(1)}%</b></div>`).join("")
+    + `<div class="row"><span>rejected rows</span><b>${q.rejected_rows}</b></div>`;
+}
+
+async function loadDeals(){
+  const rows = await j("/deals?limit=8");
+  $("#deals tbody").innerHTML = rows.length ? rows.map(d => `<tr>
+    <td><img loading="lazy" src="${d.image_url||''}" alt="" onerror="this.style.display='none'">${d.product_name}</td>
+    <td class="mono">${fmt(d.current_price)}</td>
+    <td class="mono" style="text-decoration:line-through;color:var(--ink-dim)">${fmt(d.original_price)}</td>
+    <td><span class="badge deal">−${d.discount_percentage.toFixed(0)}%</span></td>
+    <td class="mono">${d.rating ?? "–"}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="empty">No deals ≥15% right now.</td></tr>`;
+}
+
+async function loadAnoms(){
+  const rows = await j("/anomalies?limit=8");
+  $("#anoms tbody").innerHTML = rows.length ? rows.map(a => `<tr>
+    <td>${a.product_name}</td><td class="mono">${a.observed_date}</td>
+    <td class="mono" style="color:${a.price_pct_change<0?"var(--down)":"var(--up)"}">${a.price_pct_change.toFixed(1)}%</td>
+    <td><span class="badge anom">${a.anomaly_type}</span></td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">No anomalies detected in the current window.</td></tr>`;
+}
+
+async function loadFacets(){
+  const f = await j("/products/facets");
+  $("#fCat").innerHTML += f.categories.map(c=>`<option>${c}</option>`).join("");
+  $("#fBrand").innerHTML += f.brands.map(b=>`<option>${b}</option>`).join("");
+}
+
+let debounce;
+$("#q").oninput = e => { clearTimeout(debounce); debounce = setTimeout(()=>{state.q=e.target.value;state.page=1;loadProducts();},300); };
+$("#fCat").onchange = e => { state.cat=e.target.value; state.page=1; loadProducts(); };
+$("#fBrand").onchange = e => { state.brand=e.target.value; state.page=1; loadProducts(); };
+$("#fSort").onchange = e => { state.sort=e.target.value; state.page=1; loadProducts(); };
+$("#prev").onclick = () => { if(state.page>1){state.page--;loadProducts();} };
+$("#next").onclick = () => { if(state.page<state.pages){state.page++;loadProducts();} };
+
+async function loadProducts(){
+  const [sort, order] = state.sort.split(":");
+  const p = new URLSearchParams({page:state.page, page_size:12, sort_by:sort, order});
+  if(state.q) p.set("search", state.q);
+  if(state.cat) p.set("category", state.cat);
+  if(state.brand) p.set("brand", state.brand);
+  $("#prodGrid").innerHTML = '<div class="skeleton"></div>'.repeat(6);
+  const page = await j("/products?"+p);
+  state.pages = page.total_pages;
+  $("#pageInfo").textContent = `page ${page.page} / ${page.total_pages} · ${page.total} products`;
+  $("#prev").disabled = page.page<=1; $("#next").disabled = page.page>=page.total_pages;
+  $("#prodGrid").innerHTML = page.items.length ? page.items.map(pr => `
+    <div class="card pcard" onclick="openDrawer(${pr.product_id})" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter')openDrawer(${pr.product_id})">
+      <img loading="lazy" src="${pr.image_url||''}" alt="" onerror="this.style.height='0'">
+      <div class="body">
+        <div class="name">${pr.product_name}</div>
+        <div class="eyebrow">${pr.brand ?? ""} · ${pr.category}</div>
+        <div class="meta">
+          <span class="price">${fmt(pr.avg_price)}</span>
+          <span class="rating">★ ${pr.avg_rating?.toFixed(1) ?? "–"}</span>
+        </div>
+        ${pr.segment_name ? `<div style="margin-top:8px"><span class="badge seg">${pr.segment_name}</span></div>` : ""}
+      </div>
+    </div>`).join("") : `<div class="empty">No products match. Clear a filter to widen the search.</div>`;
+}
+
+async function openDrawer(id){
+  $("#drawer").classList.add("open");
+  $("#drawerBody").innerHTML = '<div class="skeleton" style="min-height:300px"></div>';
+  const [p, hist, fc, recs] = await Promise.all([
+    j(`/products/${id}`), j(`/products/${id}/price-history`),
+    j(`/products/${id}/forecast`), j(`/products/${id}/recommendations`)]);
+  $("#drawerBody").innerHTML = `
+    <div class="eyebrow">${p.brand ?? ""} · ${p.category} ${p.segment_name?`· <span class="badge seg">${p.segment_name}</span>`:""}</div>
+    <h2 style="font-size:20px;margin-top:6px">${p.product_name}</h2>
+    <img class="hero" loading="lazy" src="${p.image_url||''}" alt="" onerror="this.remove()">
+    <div class="stats">
+      <div class="stat"><div class="l">Avg price</div><div class="v">${fmt(p.avg_price)}</div></div>
+      <div class="stat"><div class="l">Range</div><div class="v">${fmt(p.min_price)}–${fmt(p.max_price)}</div></div>
+      <div class="stat"><div class="l">Volatility</div><div class="v">${(p.price_volatility*100).toFixed(1)}%</div></div>
+      <div class="stat"><div class="l">Rating</div><div class="v">★ ${p.avg_rating?.toFixed(2) ?? "–"}</div></div>
+      <div class="stat"><div class="l">Reviews</div><div class="v">${p.total_reviews?.toLocaleString() ?? "–"}</div></div>
+      <div class="stat"><div class="l">Avg discount</div><div class="v">${p.avg_discount?.toFixed(1) ?? 0}%</div></div>
+    </div>
+    <h2>Price history & 14-day forecast <span class="eyebrow">band = 90% interval</span></h2>
+    <canvas id="histChart" height="150"></canvas>
+    <h2 style="margin-top:22px">Similar products <span class="eyebrow">content-based · cosine</span></h2>
+    <div class="recs">${recs.map(r=>`
+      <div class="rec" onclick="openDrawer(${r.product_id})">
+        <img loading="lazy" src="${r.image_url||''}" alt="" onerror="this.style.display='none'">
+        <div><b>${r.product_name}</b><br><span style="color:var(--ink-dim)">${fmt(r.avg_price)} · sim ${r.similarity.toFixed(2)}</span></div>
+      </div>`).join("") || '<div class="empty">No recommendations yet.</div>'}
+    </div>`;
+  const labels = [...hist.map(h=>h.observed_date), ...fc.map(f=>f.forecast_date)];
+  histChart?.destroy();
+  histChart = new Chart($("#histChart"), {
+    type:"line",
+    data:{ labels, datasets:[
+      { label:"price", data:[...hist.map(h=>h.price), ...Array(fc.length).fill(null)],
+        borderColor:css("--amber"), borderWidth:2, pointRadius:0, tension:.25 },
+      { label:"forecast", data:[...Array(hist.length).fill(null), ...fc.map(f=>f.yhat)],
+        borderColor:css("--up"), borderDash:[6,4], borderWidth:2, pointRadius:0 },
+      { label:"upper", data:[...Array(hist.length).fill(null), ...fc.map(f=>f.yhat_upper)],
+        borderColor:"transparent", backgroundColor:"rgba(45,212,191,.12)", fill:"+1", pointRadius:0 },
+      { label:"lower", data:[...Array(hist.length).fill(null), ...fc.map(f=>f.yhat_lower)],
+        borderColor:"transparent", pointRadius:0 },
+    ]},
+    options:{ plugins:{legend:{labels:{color:css("--ink-dim"),boxWidth:10,
+                 filter:i=>!["upper","lower"].includes(i.text)}}},
+      scales:{ x:{ticks:{color:css("--ink-dim"),maxTicksLimit:8},grid:{color:css("--line")}},
+               y:{ticks:{color:css("--ink-dim"),callback:v=>"$"+v},grid:{color:css("--line")}}}}
+  });
+}
+function closeDrawer(){ $("#drawer").classList.remove("open"); }
+$("#drawer").onclick = e => { if(e.target.id==="drawer") closeDrawer(); };
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeDrawer(); });
+
+boot();
+</script>
+</body>
+</html>
