@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: techtrend
+    folder: TechTrend
+    type: file
+    options: { path: /var/lib/grafana/dashboards }

@@ -1,0 +1,138 @@
+# TechTrend Enterprise Data Platform -- full local stack.
+#   docker compose up -d --build
+# Services: Postgres warehouse, MinIO lake, Airflow, MLflow, API+dashboard,
+# Prometheus, Grafana. Credentials below are local-dev defaults only; every
+# value can be overridden via .env (compose reads it automatically).
+
+x-airflow-common: &airflow-common
+  build: { context: ., dockerfile: docker/airflow/Dockerfile }
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__METRICS__STATSD_ON: "true"
+    AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+    AIRFLOW__METRICS__STATSD_PORT: 9125
+    TECHTREND_ENVIRONMENT: docker
+    TECHTREND_LAKE_ROOT: s3://techtrend-lake
+    TECHTREND_S3_ENDPOINT_URL: http://minio:9000
+    TECHTREND_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-techtrend}
+    TECHTREND_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-techtrend-secret}
+    TECHTREND_WAREHOUSE_BACKEND: postgres
+    TECHTREND_POSTGRES_DSN: postgresql://techtrend:${POSTGRES_PASSWORD:-techtrend}@postgres:5432/techtrend
+    TECHTREND_MLFLOW_TRACKING_URI: http://mlflow:5000
+    DBT_TARGET: postgres
+    POSTGRES_HOST: postgres
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techtrend}
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./dbt:/opt/techtrend/dbt
+  depends_on:
+    postgres: { condition: service_healthy }
+    minio: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: techtrend
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techtrend}
+      POSTGRES_DB: techtrend
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/techtrend/warehouse/postgres_init.sql:/docker-entrypoint-initdb.d/10_init.sql:ro
+      - ./docker/postgres/20_airflow_db.sh:/docker-entrypoint-initdb.d/20_airflow_db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techtrend"]
+      interval: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-techtrend}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-techtrend-secret}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on: { minio: { condition: service_healthy } }
+    entrypoint: >
+      /bin/sh -c "mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-techtrend} $${MINIO_ROOT_PASSWORD:-techtrend-secret}
+      && mc mb --ignore-existing local/techtrend-lake local/mlflow-artifacts"
+
+  airflow-init:
+    <<: *airflow-common
+    command: >
+      bash -c "airflow db migrate && airflow users create
+      --username admin --password ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      --firstname Data --lastname Platform --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports: ["8080:8080"]
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
+
+  mlflow:
+    build: { context: ., dockerfile: docker/mlflow/Dockerfile }
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://techtrend:${POSTGRES_PASSWORD:-techtrend}@postgres:5432/techtrend
+      --artifacts-destination s3://mlflow-artifacts
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-techtrend}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-techtrend-secret}
+    ports: ["5000:5000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
+  api:
+    build: { context: ., dockerfile: docker/api/Dockerfile }
+    environment:
+      TECHTREND_ENVIRONMENT: docker
+      TECHTREND_WAREHOUSE_BACKEND: postgres
+      TECHTREND_POSTGRES_DSN: postgresql://techtrend:${POSTGRES_PASSWORD:-techtrend}@postgres:5432/techtrend
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  statsd-exporter:
+    image: prom/statsd-exporter:latest
+    ports: ["9102:9102"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pgdata:
+  miniodata:
