@@ -1,0 +1,16 @@
+techtrend_dw:
+  target: "{{ env_var('DBT_TARGET', 'duckdb') }}"
+  outputs:
+    duckdb:
+      type: duckdb
+      path: "{{ env_var('TECHTREND_DUCKDB_PATH', 'data/warehouse/techtrend.duckdb') }}"
+      threads: 4
+    postgres:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'postgres') }}"
+      port: 5432
+      user: "{{ env_var('POSTGRES_USER', 'techtrend') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'techtrend') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'techtrend') }}"
+      schema: analytics
+      threads: 4

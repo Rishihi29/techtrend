@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: stg_products
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+  - name: stg_price_observations
+    tests:
+      - unique_grain_product_day
+    columns:
+      - name: product_id
+        tests: [not_null]
+      - name: price
+        tests: [not_null]

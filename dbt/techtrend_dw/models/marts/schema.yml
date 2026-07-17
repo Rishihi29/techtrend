@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: dim_product
+    description: SCD Type 2 product dimension built from the dbt snapshot.
+    columns:
+      - name: product_sk
+        tests: [unique, not_null]
+      - name: product_nk
+        tests: [not_null]
+  - name: dim_date
+    columns:
+      - name: date_sk
+        tests: [unique, not_null]
+  - name: fact_price_observation
+    description: "Grain: one row per product per observed day."
+    columns:
+      - name: product_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_sk
+      - name: date_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_sk
+      - name: price
+        tests: [not_null]
+  - name: mart_product_performance
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+  - name: ml_forecast
+    columns:
+      - name: yhat
+        tests: [not_null]
+  - name: ml_recommendation
+    columns:
+      - name: product_id
+        tests: [not_null]
